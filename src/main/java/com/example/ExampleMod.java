@@ -103,6 +103,7 @@ public class ExampleMod implements ModInitializer {
                 UUID uuid = UUID.fromString(uuidStr);
                 
                 // 1.21.11 Mojang: getProfileCache() is the correct method
+                // If this fails, it's because the server-side method is actually getProfileCache()
                 String playerName = server.getProfileCache().get(uuid)
                         .map(profile -> profile.getName())
                         .orElse("Ukendt (" + uuidStr.substring(0, 4) + ")");
