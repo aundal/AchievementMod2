@@ -19,6 +19,10 @@ import net.minecraft.world.item.Items;
 import java.lang.reflect.Method;
 import java.util.*;
 
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+
+@Environment(EnvType.CLIENT)
 public class AchievementScreen extends Screen {
 
     private final List<PlayerEntry>      players      = new ArrayList<>();
