@@ -175,9 +175,13 @@ public class ExampleMod implements ModInitializer {
                 int from = (clampedPage - 1) * PAGE_SIZE;
                 int to = Math.min(from + PAGE_SIZE, rows.size());
 
-                // Header
+                // Only count completions that are in allAdvancements (fixes inflated count)
+                long totalDone = allAdvancements.stream()
+                    .filter(h -> done.contains(h.id().toString()))
+                    .count();
+
                 source.sendSuccess(() -> Component.literal(
-                    "--- " + username + "'s achievements (" + done.size() + "/" + allAdvancements.size() + ") ---"
+                    "--- " + username + "'s achievements (" + totalDone + "/" + allAdvancements.size() + ") ---"
                 ).withStyle(ChatFormatting.GOLD), false);
 
                 // Rows for this page
