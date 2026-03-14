@@ -12,7 +12,7 @@
 		"sources": "https://github.com/aundal/AchievementMod2"
 	},
 	"license": "CC0-1.0",
-	"icon": "assets/crappy_achievements/icon.png",
+	"icon": "assets/modid/icon.png",
 	"environment": "*",
 	"entrypoints": {
 		"main": [
