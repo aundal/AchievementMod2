@@ -10,9 +10,11 @@ base {
 repositories {
 }
 loom {
+    splitEnvironmentSourceSets()
     mods {
         "crappy_achievements" {
             sourceSet sourceSets.main
+            sourceSet sourceSets.client
         }
     }
 }
