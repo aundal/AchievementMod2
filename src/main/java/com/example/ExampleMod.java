@@ -100,10 +100,8 @@ public class ExampleMod implements ModInitializer {
 
                 UUID uuid = UUID.fromString(uuidStr);
 
-                // FIX: use getServices().profileCache() instead of getProfileCache()
-                String playerName = server.getServices().profileCache()
-                        .get(uuid)
-                        .map(profile -> profile.getName())
+                String playerName = Optional.ofNullable(server.getPlayerList().getPlayer(uuid))
+                        .map(p -> p.getName().getString())
                         .orElse("Ukendt (" + uuidStr.substring(0, 4) + ")");
 
                 int count = 0;
