@@ -7,11 +7,16 @@ import net.minecraft.client.Minecraft;
 public class ExampleModClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
+        // Register the packet
         ClientPlayNetworking.registerGlobalReceiver(AchievementPayload.TYPE, (payload, context) -> {
             String json = payload.json();
             context.client().execute(() ->
                 Minecraft.getInstance().setScreen(new AchievementScreen(json))
             );
         });
+    
+        // Wire the sender so ExampleMod can send packets
+        ExampleMod.guiSender = (player, json) ->
+            ServerPlayNetworking.send(player, new AchievementPayload(json));
     }
 }
