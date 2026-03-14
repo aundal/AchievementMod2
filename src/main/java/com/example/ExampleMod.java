@@ -9,6 +9,8 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.ChatFormatting;
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.StringArgumentType;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.storage.LevelResource;
@@ -41,7 +43,14 @@ public class ExampleMod implements ModInitializer {
                 .executes(context -> {
                     triggerAchievementScan(context.getSource());
                     return 1;
-                }));
+                })
+                .then(Commands.argument("username", StringArgumentType.word())
+                    .executes(context -> {
+                        String username = StringArgumentType.getString(context, "username");
+                        triggerPlayerAchievements(context.getSource(), username);
+                        return 1;
+                    }))
+            );
         });
     }
 
@@ -50,14 +59,11 @@ public class ExampleMod implements ModInitializer {
         try {
             File cacheFile = server.getServerDirectory().resolve("usercache.json").toFile();
             if (!cacheFile.exists()) return cache;
-
             try (FileReader reader = new FileReader(cacheFile)) {
                 JsonArray array = JsonParser.parseReader(reader).getAsJsonArray();
                 for (JsonElement el : array) {
                     JsonObject obj = el.getAsJsonObject();
-                    String uuid = obj.get("uuid").getAsString();
-                    String name = obj.get("name").getAsString();
-                    cache.put(uuid, name);
+                    cache.put(obj.get("uuid").getAsString(), obj.get("name").getAsString());
                 }
             }
         } catch (Exception e) {
@@ -66,13 +72,86 @@ public class ExampleMod implements ModInitializer {
         return cache;
     }
 
+    // Reverse lookup: name -> uuid
+    private String findUuidByName(MinecraftServer server, String username) {
+        Map<String, String> cache = loadUserCache(server);
+        for (Map.Entry<String, String> entry : cache.entrySet()) {
+            if (entry.getValue().equalsIgnoreCase(username)) {
+                return entry.getKey();
+            }
+        }
+        return null;
+    }
+
+    private void triggerPlayerAchievements(CommandSourceStack source, String username) {
+        MinecraftServer server = source.getServer();
+        server.getPlayerList().saveAll();
+
+        List<AdvancementHolder> allAdvancements = new ArrayList<>();
+        for (AdvancementHolder holder : server.getAdvancements().getAllAdvancements()) {
+            if (holder.value().display().isPresent()) {
+                allAdvancements.add(holder);
+            }
+        }
+
+        String uuid = findUuidByName(server, username);
+        if (uuid == null) {
+            source.sendSuccess(() -> Component.literal("Spiller '" + username + "' ikke fundet i usercache.").withStyle(ChatFormatting.RED), false);
+            return;
+        }
+
+        Path savePath = server.getWorldPath(LevelResource.PLAYER_ADVANCEMENTS_DIR);
+        File advFile = savePath.resolve(uuid + ".json").toFile();
+
+        if (!advFile.exists()) {
+            source.sendSuccess(() -> Component.literal("Ingen advancement-data fundet for " + username + ".").withStyle(ChatFormatting.RED), false);
+            return;
+        }
+
+        CompletableFuture.supplyAsync(() -> {
+            Set<String> done = new HashSet<>();
+            try (FileReader reader = new FileReader(advFile)) {
+                JsonObject json = JsonParser.parseReader(reader).getAsJsonObject();
+                for (Map.Entry<String, JsonElement> entry : json.entrySet()) {
+                    JsonObject data = entry.getValue().getAsJsonObject();
+                    if (data.has("done") && data.get("done").getAsBoolean()) {
+                        done.add(entry.getKey());
+                    }
+                }
+            } catch (Exception e) {
+                LOGGER.error("Fejl ved læsning af advancement-fil", e);
+            }
+            return done;
+        }, ASYNC_IO).thenAccept(done -> {
+            server.execute(() -> {
+                String header = username + "'s achievements (" + done.size() + "/" + allAdvancements.size() + ")";
+                source.sendSuccess(() -> Component.literal("--- " + header + " ---").withStyle(ChatFormatting.GOLD), false);
+
+                for (AdvancementHolder holder : allAdvancements) {
+                    boolean completed = done.contains(holder.id().toString());
+                    String displayName = holder.value().display()
+                        .map(d -> d.getTitle().getString())
+                        .orElse(holder.id().toString());
+
+                    String prefix = completed ? "[+] " : "[-] ";
+                    ChatFormatting color = completed ? ChatFormatting.GREEN : ChatFormatting.RED;
+
+                    source.sendSuccess(() -> Component.literal(prefix + displayName).withStyle(color), false);
+                }
+            });
+        }).exceptionally(ex -> {
+            LOGGER.error("Fejl under achievement-liste", ex);
+            server.execute(() -> source.sendFailure(Component.literal("Intern fejl.")));
+            return null;
+        });
+    }
+
     private void triggerAchievementScan(CommandSourceStack source) {
         MinecraftServer server = source.getServer();
-        source.sendSuccess(() -> Component.literal("Beregner leaderboard for 1.21.11...").withStyle(ChatFormatting.GRAY), false);
+        source.sendSuccess(() -> Component.literal("Beregner leaderboard...").withStyle(ChatFormatting.GRAY), false);
 
-        // Tving gem af alle spillerdata før scanning
         server.getPlayerList().saveAll();
-        
+
         List<String> validIds = new ArrayList<>();
         for (AdvancementHolder holder : server.getAdvancements().getAllAdvancements()) {
             if (holder.value().display().isPresent()) {
@@ -89,27 +168,26 @@ public class ExampleMod implements ModInitializer {
                         source.sendSuccess(() -> Component.literal("Ingen data fundet.").withStyle(ChatFormatting.RED), false);
                         return;
                     }
-            
+
                     int total = validIds.size();
                     String header = String.format("%-3s %-16s %8s  %s", "#", "Spiller", "Adv", "Sidst");
                     String separator = "-".repeat(44);
-            
+
                     source.sendSuccess(() -> Component.literal("--- Achievements Leaderboard ---").withStyle(ChatFormatting.GOLD), false);
                     source.sendSuccess(() -> Component.literal(header).withStyle(ChatFormatting.YELLOW), false);
                     source.sendSuccess(() -> Component.literal(separator).withStyle(ChatFormatting.DARK_GRAY), false);
-            
+
                     int rank = 1;
                     for (PlayerResult res : results) {
                         String timeStr = res.lastTs() > 0
                             ? OffsetDateTime.ofInstant(java.time.Instant.ofEpochMilli(res.lastTs()), java.time.ZoneId.systemDefault()).format(CHAT_FORMAT)
                             : "Aldrig";
-            
+
                         String score = res.count() + "/" + total;
                         String line = String.format("%-3d %-16s %8s  %s", rank++, res.name(), score, timeStr);
-            
                         source.sendSuccess(() -> Component.literal(line).withStyle(ChatFormatting.WHITE), false);
                     }
-            
+
                     source.sendSuccess(() -> Component.literal(separator).withStyle(ChatFormatting.DARK_GRAY), false);
                 });
             })
@@ -135,9 +213,6 @@ public class ExampleMod implements ModInitializer {
 
                 UUID uuid = UUID.fromString(uuidStr);
 
-                // 1. Prøv online spillere først
-                // 2. Fald tilbage til usercache.json
-                // 3. Sidst udvej: vis kort UUID
                 String playerName = Optional.ofNullable(server.getPlayerList().getPlayer(uuid))
                         .map(p -> p.getName().getString())
                         .orElseGet(() -> userCache.getOrDefault(uuidStr, "Ukendt (" + uuidStr.substring(0, 4) + ")"));
