@@ -170,8 +170,7 @@ public class ExampleMod implements ModInitializer {
                         Component line = Component.literal(prefix + displayName)
                             .withStyle(style -> style
                                 .withColor(color)
-                                .withHoverEvent(new HoverEvent(
-                                    HoverEvent.Action.SHOW_TEXT,
+                                .withHoverEvent(new HoverEvent.ShowText(
                                     Component.literal(description).withStyle(ChatFormatting.GRAY)
                                 ))
                             );
