@@ -1,5 +1,6 @@
 package com.example;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -44,6 +45,27 @@ public class ExampleMod implements ModInitializer {
         });
     }
 
+    private Map<String, String> loadUserCache(MinecraftServer server) {
+        Map<String, String> cache = new HashMap<>();
+        try {
+            File cacheFile = server.getServerDirectory().resolve("usercache.json").toFile();
+            if (!cacheFile.exists()) return cache;
+
+            try (FileReader reader = new FileReader(cacheFile)) {
+                JsonArray array = JsonParser.parseReader(reader).getAsJsonArray();
+                for (JsonElement el : array) {
+                    JsonObject obj = el.getAsJsonObject();
+                    String uuid = obj.get("uuid").getAsString();
+                    String name = obj.get("name").getAsString();
+                    cache.put(uuid, name);
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.warn("Kunne ikke læse usercache.json", e);
+        }
+        return cache;
+    }
+
     private void triggerAchievementScan(CommandSourceStack source) {
         MinecraftServer server = source.getServer();
         source.sendSuccess(() -> Component.literal("Beregner leaderboard for 1.21.11...").withStyle(ChatFormatting.GRAY), false);
@@ -64,19 +86,28 @@ public class ExampleMod implements ModInitializer {
                         source.sendSuccess(() -> Component.literal("Ingen data fundet.").withStyle(ChatFormatting.RED), false);
                         return;
                     }
-
+            
+                    int total = validIds.size();
+                    String header = String.format("%-3s %-16s %8s  %s", "#", "Spiller", "Adv", "Sidst");
+                    String separator = "-".repeat(44);
+            
                     source.sendSuccess(() -> Component.literal("--- Achievements Leaderboard ---").withStyle(ChatFormatting.GOLD), false);
+                    source.sendSuccess(() -> Component.literal(header).withStyle(ChatFormatting.YELLOW), false);
+                    source.sendSuccess(() -> Component.literal(separator).withStyle(ChatFormatting.DARK_GRAY), false);
+            
                     int rank = 1;
                     for (PlayerResult res : results) {
                         String timeStr = res.lastTs() > 0
                             ? OffsetDateTime.ofInstant(java.time.Instant.ofEpochMilli(res.lastTs()), java.time.ZoneId.systemDefault()).format(CHAT_FORMAT)
                             : "Aldrig";
-
-                        String line = String.format("%d. %s: %d/%d (Sidst: %s)",
-                            rank++, res.name(), res.count(), validIds.size(), timeStr);
-
+            
+                        String score = res.count() + "/" + total;
+                        String line = String.format("%-3d %-16s %8s  %s", rank++, res.name(), score, timeStr);
+            
                         source.sendSuccess(() -> Component.literal(line).withStyle(ChatFormatting.WHITE), false);
                     }
+            
+                    source.sendSuccess(() -> Component.literal(separator).withStyle(ChatFormatting.DARK_GRAY), false);
                 });
             })
             .exceptionally(ex -> {
@@ -91,6 +122,7 @@ public class ExampleMod implements ModInitializer {
         File[] files = folder.listFiles((dir, name) -> name.endsWith(".json"));
         if (files == null) return Collections.emptyList();
 
+        Map<String, String> userCache = loadUserCache(server);
         List<PlayerResult> stats = new ArrayList<>();
 
         for (File file : files) {
@@ -100,9 +132,12 @@ public class ExampleMod implements ModInitializer {
 
                 UUID uuid = UUID.fromString(uuidStr);
 
+                // 1. Prøv online spillere først
+                // 2. Fald tilbage til usercache.json
+                // 3. Sidst udvej: vis kort UUID
                 String playerName = Optional.ofNullable(server.getPlayerList().getPlayer(uuid))
                         .map(p -> p.getName().getString())
-                        .orElse("Ukendt (" + uuidStr.substring(0, 4) + ")");
+                        .orElseGet(() -> userCache.getOrDefault(uuidStr, "Ukendt (" + uuidStr.substring(0, 4) + ")"));
 
                 int count = 0;
                 long latest = 0;
