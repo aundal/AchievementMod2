@@ -140,7 +140,7 @@ public class AchievementScreen extends Screen {
 
     // Use reflection to get texture from PlayerSkin — avoids version-specific accessor name
     private void renderHead(GuiGraphics g, UUID uuid, int x, int y, int size) {
-        ResourceLocation skin = null;
+        Identifier skin = null;
         try {
             Minecraft mc = Minecraft.getInstance();
             if (mc.getConnection() != null) {
@@ -151,7 +151,7 @@ public class AchievementScreen extends Screen {
                     for (String methodName : new String[]{"texture", "getTexture"}) {
                         try {
                             Method m = playerSkin.getClass().getMethod(methodName);
-                            skin = (ResourceLocation) m.invoke(playerSkin);
+                            skin = (Identifier) m.invoke(playerSkin);
                             break;
                         } catch (Exception ignored) {}
                     }
@@ -162,14 +162,14 @@ public class AchievementScreen extends Screen {
                 for (String methodName : new String[]{"texture", "getTexture"}) {
                     try {
                         Method m = defaultSkin.getClass().getMethod(methodName);
-                        skin = (ResourceLocation) m.invoke(defaultSkin);
+                        skin = (Identifier) m.invoke(defaultSkin);
                         break;
                     } catch (Exception ignored) {}
                 }
             }
         } catch (Exception ignored) {}
 
-        if (skin == null) skin = ResourceLocation.withDefaultNamespace("textures/entity/player/wide/steve.png");
+        if (skin == null) skin = Identifier.ofVanilla("textures/entity/player/wide/steve.png");
         PlayerFaceRenderer.draw(g, skin, x, y, size);
     }
 
@@ -308,7 +308,7 @@ public class AchievementScreen extends Screen {
     private ItemStack resolveItem(String itemId) {
         try {
             return BuiltInRegistries.ITEM
-                .getOptional(ResourceLocation.parse(itemId))
+                .getOptional(Identifier.of(itemId))
                 .map(ItemStack::new)
                 .orElse(new ItemStack(Items.BARRIER));
         } catch (Exception e) {
