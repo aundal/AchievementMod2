@@ -8,7 +8,7 @@ import net.minecraft.util.Identifier;
 public record AchievementPayload(String json) implements CustomPacketPayload {
  
     public static final Type<AchievementPayload> TYPE = new Type<>(
-        ResourceLocation.fromNamespaceAndPath("crappy_achievements", "achievement_data")
+        Identifier.of("crappy_achievements", "achievement_data")
     );
  
     public static final StreamCodec<FriendlyByteBuf, AchievementPayload> CODEC = StreamCodec.of(
