@@ -6,6 +6,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.PlayerFaceRenderer;
 import net.minecraft.client.gui.screens.Screen;
@@ -32,7 +33,7 @@ public class AchievementScreen extends Screen {
     record AdvancementEntry(String id, String namespace, String title, String description, String iconItem) {}
 
     // -------------------------------------------------------------------------
-    // Layout
+    // Layout constants
     // -------------------------------------------------------------------------
 
     private static final int LEFT_W    = 190;
@@ -49,8 +50,9 @@ public class AchievementScreen extends Screen {
     private int selectedPlayer     = 0;
     private int playerScrollOffset = 0;
     private int achievementScrollY = 0;
-
-    private AdvancementEntry hoveredAdv = null;
+    private AdvancementEntry hoveredAdv     = null;
+    private int              hoveredAdvX    = 0;
+    private int              hoveredAdvY    = 0;
 
     // -------------------------------------------------------------------------
     // Constructor
@@ -109,13 +111,13 @@ public class AchievementScreen extends Screen {
         int rightX = leftX + LEFT_W + 6, rightY = leftY;
         int rightW = this.width - rightX - 8, rightH = leftH;
 
-        // Left panel
+        // Left panel — player list
         drawPanel(g, leftX, leftY, LEFT_W, leftH);
         g.drawString(font, Component.literal("Players").withStyle(ChatFormatting.GOLD),
             leftX + PANEL_PAD, leftY + PANEL_PAD, 0xFFFFFFFF, false);
         renderPlayerList(g, leftX, leftY + 20, LEFT_W, leftH - 20, mouseX, mouseY);
 
-        // Right panel
+        // Right panel — achievements
         drawPanel(g, rightX, rightY, rightW, rightH);
         if (!players.isEmpty()) {
             PlayerEntry sel = players.get(selectedPlayer);
@@ -126,20 +128,20 @@ public class AchievementScreen extends Screen {
             renderAchievements(g, rightX, rightY + 20, rightW, rightH - 20, mouseX, mouseY);
         }
 
-        // Tooltip on top
+        // Tooltip drawn last so it's always on top
         if (hoveredAdv != null) {
-            renderAdvTooltip(g, hoveredAdv, mouseX, mouseY);
+            renderAdvTooltip(g, hoveredAdv, hoveredAdvX, hoveredAdvY);
         }
 
         super.render(g, mouseX, mouseY, delta);
     }
 
     private void drawPanel(GuiGraphics g, int x, int y, int w, int h) {
-        g.fill(x,     y,     x + w,     y + h,     0xDD0D1117);
-        g.fill(x + 1, y,     x + w - 1, y + 1,     0xFF2A2D3E);
-        g.fill(x + 1, y + h - 1, x + w - 1, y + h, 0xFF2A2D3E);
-        g.fill(x,     y + 1, x + 1,     y + h - 1, 0xFF2A2D3E);
-        g.fill(x + w - 1, y + 1, x + w, y + h - 1, 0xFF2A2D3E);
+        g.fill(x,         y,         x + w,     y + h,     0xDD0D1117);
+        g.fill(x + 1,     y,         x + w - 1, y + 1,     0xFF2A2D3E);
+        g.fill(x + 1,     y + h - 1, x + w - 1, y + h,     0xFF2A2D3E);
+        g.fill(x,         y + 1,     x + 1,     y + h - 1, 0xFF2A2D3E);
+        g.fill(x + w - 1, y + 1,     x + w,     y + h - 1, 0xFF2A2D3E);
     }
 
     // ---- Player list ----
@@ -156,13 +158,12 @@ public class AchievementScreen extends Screen {
             boolean selected = (i == selectedPlayer);
             boolean hovered  = mouseX >= x && mouseX < x + w && mouseY >= ey && mouseY < ey + ENTRY_H;
 
-            if (selected) g.fill(x + 1, ey, x + w - 1, ey + ENTRY_H, 0x55FFAA00);
+            if (selected)     g.fill(x + 1, ey, x + w - 1, ey + ENTRY_H, 0x55FFAA00);
             else if (hovered) g.fill(x + 1, ey, x + w - 1, ey + ENTRY_H, 0x33FFFFFF);
 
             g.fill(x + 4, ey + ENTRY_H - 1, x + w - 4, ey + ENTRY_H, 0x33FFFFFF);
 
             renderHead(g, player.uuid(), x + PANEL_PAD, ey + 7, 20);
-
             g.drawString(font, player.name(), x + 32, ey + 7,
                 selected ? 0xFFFFAA00 : 0xFFEEEEEE, false);
 
@@ -177,9 +178,15 @@ public class AchievementScreen extends Screen {
         ResourceLocation skin = null;
         if (mc.getConnection() != null) {
             PlayerInfo info = mc.getConnection().getPlayerInfo(uuid);
-            if (info != null) skin = info.getSkin().texture();
+            if (info != null) {
+                // getSkin() returns a PlayerSkin record — .texture() is the accessor
+                try { skin = info.getSkin().texture(); } catch (Exception ignored) {}
+            }
         }
-        if (skin == null) skin = DefaultPlayerSkin.get(uuid).texture();
+        if (skin == null) {
+            try { skin = DefaultPlayerSkin.get(uuid).texture(); } catch (Exception ignored) {}
+        }
+        if (skin == null) skin = ResourceLocation.withDefaultNamespace("textures/entity/player/wide/steve.png");
         PlayerFaceRenderer.draw(g, skin, x, y, size);
     }
 
@@ -190,6 +197,7 @@ public class AchievementScreen extends Screen {
                                      int mouseX, int mouseY) {
         PlayerEntry player = players.get(selectedPlayer);
 
+        // Group by namespace
         Map<String, List<AdvancementEntry>> grouped = new LinkedHashMap<>();
         for (AdvancementEntry a : advancements) {
             grouped.computeIfAbsent(a.namespace(), k -> new ArrayList<>()).add(a);
@@ -207,6 +215,7 @@ public class AchievementScreen extends Screen {
         g.enableScissor(panelX, panelY, panelX + panelW, panelY + panelH);
 
         AdvancementEntry newHovered = null;
+        int newHovX = 0, newHovY = 0;
         int contentY = panelY + PANEL_PAD - achievementScrollY;
 
         for (Map.Entry<String, List<AdvancementEntry>> group : sorted.entrySet()) {
@@ -232,10 +241,13 @@ public class AchievementScreen extends Screen {
 
                     if (mouseX >= ix && mouseX < ix + ICON_SIZE && mouseY >= iy && mouseY < iy + ICON_SIZE) {
                         newHovered = adv;
-                        g.fill(ix,              iy,                  ix + ICON_SIZE, iy + 1,              0xFFFFFFFF);
-                        g.fill(ix,              iy + ICON_SIZE - 1,  ix + ICON_SIZE, iy + ICON_SIZE,      0xFFFFFFFF);
-                        g.fill(ix,              iy,                  ix + 1,         iy + ICON_SIZE,      0xFFFFFFFF);
-                        g.fill(ix + ICON_SIZE - 1, iy,              ix + ICON_SIZE, iy + ICON_SIZE,      0xFFFFFFFF);
+                        newHovX = mouseX;
+                        newHovY = mouseY;
+                        // Highlight border
+                        g.fill(ix,               iy,                  ix + ICON_SIZE, iy + 1,             0xFFFFFFFF);
+                        g.fill(ix,               iy + ICON_SIZE - 1,  ix + ICON_SIZE, iy + ICON_SIZE,     0xFFFFFFFF);
+                        g.fill(ix,               iy,                  ix + 1,         iy + ICON_SIZE,     0xFFFFFFFF);
+                        g.fill(ix + ICON_SIZE - 1, iy,                ix + ICON_SIZE, iy + ICON_SIZE,     0xFFFFFFFF);
                     }
                 }
 
@@ -248,32 +260,65 @@ public class AchievementScreen extends Screen {
 
         g.disableScissor();
         hoveredAdv = newHovered;
+        hoveredAdvX = newHovX;
+        hoveredAdvY = newHovY;
     }
 
     private void renderAdvIcon(GuiGraphics g, AdvancementEntry adv, int x, int y, boolean completed) {
         ItemStack stack = resolveItem(adv.iconItem());
         g.renderItem(stack, x + 2, y + 2);
         if (!completed) {
+            // Dark overlay for incomplete achievements
             g.fill(x + 2, y + 2, x + ICON_SIZE - 2, y + ICON_SIZE - 2, 0xBB111111);
         }
     }
 
+    // Draw tooltip manually to avoid API version issues
     private void renderAdvTooltip(GuiGraphics g, AdvancementEntry adv, int mouseX, int mouseY) {
         PlayerEntry player = players.get(selectedPlayer);
         boolean completed = player.completed().contains(adv.id());
 
-        List<Component> lines = new ArrayList<>();
-        lines.add(Component.literal(adv.title()).withStyle(completed ? ChatFormatting.GREEN : ChatFormatting.RED));
-        lines.add(Component.literal(adv.description()).withStyle(ChatFormatting.GRAY));
-        lines.add(Component.empty());
-        lines.add(Component.literal(completed ? "✔ Completed" : "✘ Not completed")
-            .withStyle(completed ? ChatFormatting.DARK_GREEN : ChatFormatting.DARK_RED));
+        String title  = adv.title();
+        String desc   = adv.description();
+        String status = completed ? "✔ Completed" : "✘ Not completed";
 
-        g.renderTooltip(font, lines, Optional.empty(), mouseX, mouseY);
+        int titleColor  = completed ? 0xFF55FF55 : 0xFFFF5555;
+        int statusColor = completed ? 0xFF00AA00 : 0xFFAA0000;
+
+        int maxWidth = Math.max(font.width(title), Math.max(font.width(desc), font.width(status)));
+        int padding  = 5;
+        int lineH    = font.lineHeight + 2;
+        int boxW     = maxWidth + padding * 2;
+        int boxH     = lineH * 3 + padding * 2 + 4; // 3 lines + separator gap
+
+        int tx = mouseX + 12;
+        int ty = mouseY - 12;
+
+        // Keep on screen
+        if (tx + boxW > this.width  - 4) tx = mouseX - boxW - 4;
+        if (ty + boxH > this.height - 4) ty = this.height - boxH - 4;
+        if (ty < 4) ty = 4;
+
+        // Background + border
+        g.fill(tx - 1,         ty - 1,         tx + boxW + 1, ty + boxH + 1, 0xFF1A1A2E);
+        g.fill(tx,             ty,             tx + boxW,     ty + boxH,     0xEE0D1117);
+        g.fill(tx,             ty,             tx + 1,         ty + boxH,     0xFF444466);
+        g.fill(tx + boxW - 1,  ty,             tx + boxW,     ty + boxH,     0xFF444466);
+        g.fill(tx,             ty,             tx + boxW,     ty + 1,         0xFF444466);
+        g.fill(tx,             ty + boxH - 1,  tx + boxW,     ty + boxH,     0xFF444466);
+
+        int textX = tx + padding;
+        int textY = ty + padding;
+
+        g.drawString(font, title,  textX, textY,              titleColor,  false);
+        g.drawString(font, desc,   textX, textY + lineH,      0xFFAAAAAA, false);
+        // Separator
+        g.fill(textX, textY + lineH * 2, textX + maxWidth, textY + lineH * 2 + 1, 0xFF444444);
+        g.drawString(font, status, textX, textY + lineH * 2 + 3, statusColor, false);
     }
 
     // -------------------------------------------------------------------------
-    // Input — using mouseClicked(double, double, int) for 1.21.x compatibility
+    // Input
     // -------------------------------------------------------------------------
 
     @Override
@@ -290,7 +335,7 @@ public class AchievementScreen extends Screen {
                 }
             }
         }
-        return super.mouseClicked(mx, my, button);
+        return false;
     }
 
     @Override
@@ -307,8 +352,11 @@ public class AchievementScreen extends Screen {
 
     @Override
     public boolean keyPressed(int key, int scan, int mods) {
-        if (key == 256) { onClose(); return true; }
-        return super.keyPressed(key, scan, mods);
+        if (key == 256) { // ESC
+            onClose();
+            return true;
+        }
+        return false;
     }
 
     // -------------------------------------------------------------------------
