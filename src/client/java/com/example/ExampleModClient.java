@@ -25,3 +25,4 @@ public class ExampleModClient implements ClientModInitializer {
             ServerPlayNetworking.send(player, new AchievementPayload(json));
     }
 }
+ 
