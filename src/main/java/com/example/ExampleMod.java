@@ -10,8 +10,10 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.storage.LevelResource;
 import org.slf4j.Logger;
@@ -26,8 +28,8 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.stream.Collectors;
 
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import static net.minecraft.commands.Commands.literal;
 
@@ -37,6 +39,7 @@ public class ExampleMod implements ModInitializer {
     private static final ExecutorService ASYNC_IO = Executors.newSingleThreadExecutor();
     private static final DateTimeFormatter CHAT_FORMAT = DateTimeFormatter.ofPattern("dd/MM-yyyy HH:mm");
     private static final DateTimeFormatter MC_JSON_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss Z");
+    private static final int PAGE_SIZE = 15;
 
     @Override
     public void onInitialize() {
@@ -49,9 +52,16 @@ public class ExampleMod implements ModInitializer {
                 .then(Commands.argument("username", StringArgumentType.word())
                     .executes(context -> {
                         String username = StringArgumentType.getString(context, "username");
-                        triggerPlayerAchievements(context.getSource(), username);
+                        triggerPlayerAchievements(context.getSource(), username, 1);
                         return 1;
-                    }))
+                    })
+                    .then(Commands.argument("page", IntegerArgumentType.integer(1))
+                        .executes(context -> {
+                            String username = StringArgumentType.getString(context, "username");
+                            int page = IntegerArgumentType.getInteger(context, "page");
+                            triggerPlayerAchievements(context.getSource(), username, page);
+                            return 1;
+                        })))
             );
         });
     }
@@ -84,7 +94,7 @@ public class ExampleMod implements ModInitializer {
         return null;
     }
 
-    private void triggerPlayerAchievements(CommandSourceStack source, String username) {
+    private void triggerPlayerAchievements(CommandSourceStack source, String username, int page) {
         MinecraftServer server = source.getServer();
         server.getPlayerList().saveAll();
 
@@ -129,54 +139,94 @@ public class ExampleMod implements ModInitializer {
                 // Group by namespace, minecraft first then rest alphabetically
                 Map<String, List<AdvancementHolder>> grouped = new LinkedHashMap<>();
                 for (AdvancementHolder holder : allAdvancements) {
-                    String ns = holder.id().getNamespace();
-                    grouped.computeIfAbsent(ns, k -> new ArrayList<>()).add(holder);
+                    grouped.computeIfAbsent(holder.id().getNamespace(), k -> new ArrayList<>()).add(holder);
                 }
 
                 Map<String, List<AdvancementHolder>> sorted = new LinkedHashMap<>();
-                if (grouped.containsKey("minecraft")) {
-                    sorted.put("minecraft", grouped.get("minecraft"));
-                }
+                if (grouped.containsKey("minecraft")) sorted.put("minecraft", grouped.get("minecraft"));
                 grouped.entrySet().stream()
                     .filter(e -> !e.getKey().equals("minecraft"))
                     .sorted(Map.Entry.comparingByKey())
                     .forEach(e -> sorted.put(e.getKey(), e.getValue()));
 
-                source.sendSuccess(() -> Component.literal("--- " + username + "'s achievements ---").withStyle(ChatFormatting.GOLD), false);
+                // Flatten into rows
+                record Row(String text, String hover, ChatFormatting color, boolean isHeader) {}
+                List<Row> rows = new ArrayList<>();
 
                 for (Map.Entry<String, List<AdvancementHolder>> group : sorted.entrySet()) {
-                    long groupDone = group.getValue().stream()
-                        .filter(h -> done.contains(h.id().toString())).count();
-                    int groupTotal = group.getValue().size();
-
-                    source.sendSuccess(() -> Component.literal(
-                        group.getKey() + " (" + groupDone + "/" + groupTotal + "):"
-                    ).withStyle(ChatFormatting.YELLOW), false);
+                    long groupDone = group.getValue().stream().filter(h -> done.contains(h.id().toString())).count();
+                    rows.add(new Row(group.getKey() + " (" + groupDone + "/" + group.getValue().size() + "):", null, ChatFormatting.YELLOW, true));
 
                     for (AdvancementHolder holder : group.getValue()) {
                         boolean completed = done.contains(holder.id().toString());
+                        String displayName = holder.value().display().map(d -> d.getTitle().getString()).orElse(holder.id().toString());
+                        String description = holder.value().display().map(d -> d.getDescription().getString()).orElse("Ingen beskrivelse.");
+                        rows.add(new Row(
+                            (completed ? "  [+] " : "  [-] ") + displayName,
+                            description,
+                            completed ? ChatFormatting.GREEN : ChatFormatting.RED,
+                            false
+                        ));
+                    }
+                }
 
-                        String displayName = holder.value().display()
-                            .map(d -> d.getTitle().getString())
-                            .orElse(holder.id().toString());
+                int totalPages = (int) Math.ceil((double) rows.size() / PAGE_SIZE);
+                int clampedPage = Math.min(page, totalPages);
+                int from = (clampedPage - 1) * PAGE_SIZE;
+                int to = Math.min(from + PAGE_SIZE, rows.size());
 
-                        String description = holder.value().display()
-                            .map(d -> d.getDescription().getString())
-                            .orElse("Ingen beskrivelse.");
+                // Header
+                source.sendSuccess(() -> Component.literal(
+                    "--- " + username + "'s achievements (" + done.size() + "/" + allAdvancements.size() + ") ---"
+                ).withStyle(ChatFormatting.GOLD), false);
 
-                        String prefix = completed ? "  [+] " : "  [-] ";
-                        ChatFormatting color = completed ? ChatFormatting.GREEN : ChatFormatting.RED;
-
-                        Component line = Component.literal(prefix + displayName)
+                // Rows for this page
+                for (int i = from; i < to; i++) {
+                    Row row = rows.get(i);
+                    Component line;
+                    if (row.isHeader() || row.hover() == null) {
+                        line = Component.literal(row.text()).withStyle(row.color());
+                    } else {
+                        line = Component.literal(row.text())
                             .withStyle(style -> style
-                                .withColor(color)
+                                .withColor(row.color())
                                 .withHoverEvent(new HoverEvent.ShowText(
-                                    Component.literal(description).withStyle(ChatFormatting.GRAY)
+                                    Component.literal(row.hover()).withStyle(ChatFormatting.GRAY)
                                 ))
                             );
-
-                        source.sendSuccess(() -> line, false);
                     }
+                    source.sendSuccess(() -> line, false);
+                }
+
+                // Clickable prev / page counter / next
+                if (totalPages > 1) {
+                    MutableComponent nav = Component.literal("");
+
+                    if (clampedPage > 1) {
+                        nav.append(Component.literal("[◀]")
+                            .withStyle(style -> style
+                                .withColor(ChatFormatting.AQUA)
+                                .withClickEvent(new ClickEvent.RunCommand("/achievements " + username + " " + (clampedPage - 1)))
+                                .withHoverEvent(new HoverEvent.ShowText(Component.literal("Forrige side").withStyle(ChatFormatting.GRAY)))
+                            ));
+                    } else {
+                        nav.append(Component.literal("[◀]").withStyle(ChatFormatting.DARK_GRAY));
+                    }
+
+                    nav.append(Component.literal("  side " + clampedPage + "/" + totalPages + "  ").withStyle(ChatFormatting.DARK_GRAY));
+
+                    if (clampedPage < totalPages) {
+                        nav.append(Component.literal("[▶]")
+                            .withStyle(style -> style
+                                .withColor(ChatFormatting.AQUA)
+                                .withClickEvent(new ClickEvent.RunCommand("/achievements " + username + " " + (clampedPage + 1)))
+                                .withHoverEvent(new HoverEvent.ShowText(Component.literal("Næste side").withStyle(ChatFormatting.GRAY)))
+                            ));
+                    } else {
+                        nav.append(Component.literal("[▶]").withStyle(ChatFormatting.DARK_GRAY));
+                    }
+
+                    source.sendSuccess(() -> nav, false);
                 }
             });
         }).exceptionally(ex -> {
