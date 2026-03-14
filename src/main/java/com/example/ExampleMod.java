@@ -113,6 +113,7 @@ public class ExampleMod implements ModInitializer {
             try (FileReader reader = new FileReader(advFile)) {
                 JsonObject json = JsonParser.parseReader(reader).getAsJsonObject();
                 for (Map.Entry<String, JsonElement> entry : json.entrySet()) {
+                    if (!entry.getValue().isJsonObject()) continue;
                     JsonObject data = entry.getValue().getAsJsonObject();
                     if (data.has("done") && data.get("done").getAsBoolean()) {
                         done.add(entry.getKey());
@@ -222,6 +223,7 @@ public class ExampleMod implements ModInitializer {
 
                 JsonObject json = JsonParser.parseReader(reader).getAsJsonObject();
                 for (Map.Entry<String, JsonElement> entry : json.entrySet()) {
+                    if (!entry.getValue().isJsonObject()) continue;
                     if (validIds.contains(entry.getKey())) {
                         JsonObject data = entry.getValue().getAsJsonObject();
                         if (data.has("done") && data.get("done").getAsBoolean()) {
