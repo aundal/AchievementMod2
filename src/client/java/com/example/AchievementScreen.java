@@ -35,22 +35,21 @@ public class AchievementScreen extends Screen {
     // Layout
     // -------------------------------------------------------------------------
 
-    private static final int LEFT_W       = 190;   // player panel width
-    private static final int ENTRY_H      = 34;    // player list row height
-    private static final int ICON_SIZE    = 20;    // achievement icon size
-    private static final int ICON_GAP     = 3;     // gap between icons
-    private static final int HEADER_H     = 16;    // namespace header height
-    private static final int PANEL_PAD    = 6;     // inner padding
+    private static final int LEFT_W    = 190;
+    private static final int ENTRY_H   = 34;
+    private static final int ICON_SIZE = 20;
+    private static final int ICON_GAP  = 3;
+    private static final int HEADER_H  = 16;
+    private static final int PANEL_PAD = 6;
 
     // -------------------------------------------------------------------------
     // State
     // -------------------------------------------------------------------------
 
-    private int selectedPlayer        = 0;
-    private int playerScrollOffset    = 0;   // first visible player index
-    private int achievementScrollY    = 0;   // px scrolled in achievement panel
+    private int selectedPlayer     = 0;
+    private int playerScrollOffset = 0;
+    private int achievementScrollY = 0;
 
-    // Hover
     private AdvancementEntry hoveredAdv = null;
 
     // -------------------------------------------------------------------------
@@ -65,7 +64,6 @@ public class AchievementScreen extends Screen {
     private void parseJson(String json) {
         try {
             JsonObject root = JsonParser.parseString(json).getAsJsonObject();
-
             for (JsonElement el : root.getAsJsonArray("players")) {
                 JsonObject p = el.getAsJsonObject();
                 UUID uuid = UUID.fromString(p.get("uuid").getAsString());
@@ -74,7 +72,6 @@ public class AchievementScreen extends Screen {
                 p.getAsJsonArray("completed").forEach(c -> completed.add(c.getAsString()));
                 players.add(new PlayerEntry(uuid, name, completed));
             }
-
             for (JsonElement el : root.getAsJsonArray("advancements")) {
                 JsonObject a = el.getAsJsonObject();
                 advancements.add(new AdvancementEntry(
@@ -95,14 +92,10 @@ public class AchievementScreen extends Screen {
     // -------------------------------------------------------------------------
 
     @Override
-    public boolean isPauseScreen() {
-        return false;
-    }
+    public boolean isPauseScreen() { return false; }
 
     @Override
-    protected void init() {
-        // No widgets needed — all rendering is manual
-    }
+    protected void init() {}
 
     // -------------------------------------------------------------------------
     // Rendering
@@ -112,36 +105,28 @@ public class AchievementScreen extends Screen {
     public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
         renderBackground(g, mouseX, mouseY, delta);
 
-        int leftX  = 8;
-        int leftY  = 8;
-        int leftH  = this.height - 16;
+        int leftX = 8, leftY = 8, leftH = this.height - 16;
+        int rightX = leftX + LEFT_W + 6, rightY = leftY;
+        int rightW = this.width - rightX - 8, rightH = leftH;
 
-        int rightX = leftX + LEFT_W + 6;
-        int rightY = leftY;
-        int rightW = this.width - rightX - 8;
-        int rightH = leftH;
-
-        // ---- Left panel ----
+        // Left panel
         drawPanel(g, leftX, leftY, LEFT_W, leftH);
         g.drawString(font, Component.literal("Players").withStyle(ChatFormatting.GOLD),
             leftX + PANEL_PAD, leftY + PANEL_PAD, 0xFFFFFFFF, false);
-
         renderPlayerList(g, leftX, leftY + 20, LEFT_W, leftH - 20, mouseX, mouseY);
 
-        // ---- Right panel ----
+        // Right panel
         drawPanel(g, rightX, rightY, rightW, rightH);
-
         if (!players.isEmpty()) {
             PlayerEntry sel = players.get(selectedPlayer);
             long done = advancements.stream().filter(a -> sel.completed().contains(a.id())).count();
-            String title = sel.name() + "  " + done + "/" + advancements.size();
-            g.drawString(font, Component.literal(title).withStyle(ChatFormatting.GOLD),
+            g.drawString(font,
+                Component.literal(sel.name() + "  " + done + "/" + advancements.size()).withStyle(ChatFormatting.GOLD),
                 rightX + PANEL_PAD, rightY + PANEL_PAD, 0xFFFFFFFF, false);
-
             renderAchievements(g, rightX, rightY + 20, rightW, rightH - 20, mouseX, mouseY);
         }
 
-        // Tooltip — rendered last so it appears on top
+        // Tooltip on top
         if (hoveredAdv != null) {
             renderAdvTooltip(g, hoveredAdv, mouseX, mouseY);
         }
@@ -149,13 +134,12 @@ public class AchievementScreen extends Screen {
         super.render(g, mouseX, mouseY, delta);
     }
 
-    // Draws a dark rounded panel
     private void drawPanel(GuiGraphics g, int x, int y, int w, int h) {
         g.fill(x,     y,     x + w,     y + h,     0xDD0D1117);
-        g.fill(x + 1, y,     x + w - 1, y + 1,     0xFF2A2D3E); // top border
-        g.fill(x + 1, y + h - 1, x + w - 1, y + h, 0xFF2A2D3E); // bottom
-        g.fill(x,     y + 1, x + 1, y + h - 1,     0xFF2A2D3E); // left
-        g.fill(x + w - 1, y + 1, x + w, y + h - 1, 0xFF2A2D3E); // right
+        g.fill(x + 1, y,     x + w - 1, y + 1,     0xFF2A2D3E);
+        g.fill(x + 1, y + h - 1, x + w - 1, y + h, 0xFF2A2D3E);
+        g.fill(x,     y + 1, x + 1,     y + h - 1, 0xFF2A2D3E);
+        g.fill(x + w - 1, y + 1, x + w, y + h - 1, 0xFF2A2D3E);
     }
 
     // ---- Player list ----
@@ -163,52 +147,39 @@ public class AchievementScreen extends Screen {
     private void renderPlayerList(GuiGraphics g, int x, int y, int w, int h,
                                    int mouseX, int mouseY) {
         g.enableScissor(x, y, x + w, y + h);
-
         int visibleRows = h / ENTRY_H;
         int endIdx = Math.min(players.size(), playerScrollOffset + visibleRows + 1);
 
         for (int i = playerScrollOffset; i < endIdx; i++) {
             PlayerEntry player = players.get(i);
             int ey = y + (i - playerScrollOffset) * ENTRY_H;
-
             boolean selected = (i == selectedPlayer);
             boolean hovered  = mouseX >= x && mouseX < x + w && mouseY >= ey && mouseY < ey + ENTRY_H;
 
-            if (selected) {
-                g.fill(x + 1, ey, x + w - 1, ey + ENTRY_H, 0x55FFAA00);
-            } else if (hovered) {
-                g.fill(x + 1, ey, x + w - 1, ey + ENTRY_H, 0x33FFFFFF);
-            }
+            if (selected) g.fill(x + 1, ey, x + w - 1, ey + ENTRY_H, 0x55FFAA00);
+            else if (hovered) g.fill(x + 1, ey, x + w - 1, ey + ENTRY_H, 0x33FFFFFF);
 
-            // Divider
             g.fill(x + 4, ey + ENTRY_H - 1, x + w - 4, ey + ENTRY_H, 0x33FFFFFF);
 
-            // Player head (20x20)
             renderHead(g, player.uuid(), x + PANEL_PAD, ey + 7, 20);
 
-            // Name
             g.drawString(font, player.name(), x + 32, ey + 7,
                 selected ? 0xFFFFAA00 : 0xFFEEEEEE, false);
 
-            // Count
             long done = advancements.stream().filter(a -> player.completed().contains(a.id())).count();
-            String count = done + "/" + advancements.size();
-            g.drawString(font, count, x + 32, ey + 18, 0xFF888888, false);
+            g.drawString(font, done + "/" + advancements.size(), x + 32, ey + 18, 0xFF888888, false);
         }
-
         g.disableScissor();
     }
 
     private void renderHead(GuiGraphics g, UUID uuid, int x, int y, int size) {
         Minecraft mc = Minecraft.getInstance();
         ResourceLocation skin = null;
-
         if (mc.getConnection() != null) {
             PlayerInfo info = mc.getConnection().getPlayerInfo(uuid);
             if (info != null) skin = info.getSkin().texture();
         }
         if (skin == null) skin = DefaultPlayerSkin.get(uuid).texture();
-
         PlayerFaceRenderer.draw(g, skin, x, y, size);
     }
 
@@ -219,7 +190,6 @@ public class AchievementScreen extends Screen {
                                      int mouseX, int mouseY) {
         PlayerEntry player = players.get(selectedPlayer);
 
-        // Group by namespace
         Map<String, List<AdvancementEntry>> grouped = new LinkedHashMap<>();
         for (AdvancementEntry a : advancements) {
             grouped.computeIfAbsent(a.namespace(), k -> new ArrayList<>()).add(a);
@@ -243,18 +213,15 @@ public class AchievementScreen extends Screen {
             List<AdvancementEntry> list = group.getValue();
             long doneCount = list.stream().filter(a -> player.completed().contains(a.id())).count();
 
-            // Namespace header
             if (contentY + HEADER_H >= panelY && contentY < panelY + panelH) {
                 g.fill(contentX, contentY, contentX + panelW - PANEL_PAD * 2, contentY + HEADER_H, 0x441A2050);
-                String hdr = group.getKey() + "  (" + doneCount + "/" + list.size() + ")";
-                g.drawString(font, Component.literal(hdr).withStyle(ChatFormatting.YELLOW),
+                g.drawString(font,
+                    Component.literal(group.getKey() + "  (" + doneCount + "/" + list.size() + ")").withStyle(ChatFormatting.YELLOW),
                     contentX + 4, contentY + 4, 0xFFFFFFFF, false);
             }
             contentY += HEADER_H + 4;
 
-            // Icons
-            int col = 0;
-            int rowY = contentY;
+            int col = 0, rowY = contentY;
             for (AdvancementEntry adv : list) {
                 int ix = contentX + col * (ICON_SIZE + ICON_GAP);
                 int iy = rowY;
@@ -263,23 +230,17 @@ public class AchievementScreen extends Screen {
                     boolean completed = player.completed().contains(adv.id());
                     renderAdvIcon(g, adv, ix, iy, completed);
 
-                    // Hover detection
-                    if (mouseX >= ix && mouseX < ix + ICON_SIZE
-                            && mouseY >= iy && mouseY < iy + ICON_SIZE) {
+                    if (mouseX >= ix && mouseX < ix + ICON_SIZE && mouseY >= iy && mouseY < iy + ICON_SIZE) {
                         newHovered = adv;
-                        // Highlight border
-                        g.fill(ix,              iy,              ix + ICON_SIZE, iy + 1,          0xFFFFFFFF);
-                        g.fill(ix,              iy + ICON_SIZE - 1, ix + ICON_SIZE, iy + ICON_SIZE, 0xFFFFFFFF);
-                        g.fill(ix,              iy,              ix + 1,         iy + ICON_SIZE,  0xFFFFFFFF);
-                        g.fill(ix + ICON_SIZE - 1, iy,          ix + ICON_SIZE, iy + ICON_SIZE,  0xFFFFFFFF);
+                        g.fill(ix,              iy,                  ix + ICON_SIZE, iy + 1,              0xFFFFFFFF);
+                        g.fill(ix,              iy + ICON_SIZE - 1,  ix + ICON_SIZE, iy + ICON_SIZE,      0xFFFFFFFF);
+                        g.fill(ix,              iy,                  ix + 1,         iy + ICON_SIZE,      0xFFFFFFFF);
+                        g.fill(ix + ICON_SIZE - 1, iy,              ix + ICON_SIZE, iy + ICON_SIZE,      0xFFFFFFFF);
                     }
                 }
 
                 col++;
-                if (col >= iconsPerRow) {
-                    col = 0;
-                    rowY += ICON_SIZE + ICON_GAP;
-                }
+                if (col >= iconsPerRow) { col = 0; rowY += ICON_SIZE + ICON_GAP; }
             }
             if (col > 0) rowY += ICON_SIZE + ICON_GAP;
             contentY = rowY + 8;
@@ -291,13 +252,8 @@ public class AchievementScreen extends Screen {
 
     private void renderAdvIcon(GuiGraphics g, AdvancementEntry adv, int x, int y, boolean completed) {
         ItemStack stack = resolveItem(adv.iconItem());
-
-        if (completed) {
-            // Full color
-            g.renderItem(stack, x + 2, y + 2);
-        } else {
-            // Grayscale: render item then overlay with a dark semi-transparent fill
-            g.renderItem(stack, x + 2, y + 2);
+        g.renderItem(stack, x + 2, y + 2);
+        if (!completed) {
             g.fill(x + 2, y + 2, x + ICON_SIZE - 2, y + ICON_SIZE - 2, 0xBB111111);
         }
     }
@@ -313,18 +269,16 @@ public class AchievementScreen extends Screen {
         lines.add(Component.literal(completed ? "✔ Completed" : "✘ Not completed")
             .withStyle(completed ? ChatFormatting.DARK_GREEN : ChatFormatting.DARK_RED));
 
-        g.renderComponentTooltip(font, lines, mouseX, mouseY);
+        g.renderTooltip(font, lines, Optional.empty(), mouseX, mouseY);
     }
 
     // -------------------------------------------------------------------------
-    // Input
+    // Input — using mouseClicked(double, double, int) for 1.21.x compatibility
     // -------------------------------------------------------------------------
 
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
-        int leftX = 8;
-        int leftY = 28;  // after header
-
+        int leftX = 8, leftY = 28;
         if (mx >= leftX && mx < leftX + LEFT_W) {
             int relY = (int) my - leftY;
             if (relY >= 0) {
@@ -343,11 +297,9 @@ public class AchievementScreen extends Screen {
     public boolean mouseScrolled(double mx, double my, double dx, double dy) {
         int leftX = 8;
         if (mx >= leftX && mx < leftX + LEFT_W) {
-            // Scroll player list
             int maxScroll = Math.max(0, players.size() - (this.height - 40) / ENTRY_H);
             playerScrollOffset = Math.max(0, Math.min(maxScroll, playerScrollOffset - (int) dy));
         } else {
-            // Scroll achievement panel
             achievementScrollY = Math.max(0, achievementScrollY - (int)(dy * 20));
         }
         return true;
@@ -355,7 +307,7 @@ public class AchievementScreen extends Screen {
 
     @Override
     public boolean keyPressed(int key, int scan, int mods) {
-        if (key == 256) { onClose(); return true; } // ESC
+        if (key == 256) { onClose(); return true; }
         return super.keyPressed(key, scan, mods);
     }
 
