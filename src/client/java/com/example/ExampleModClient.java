@@ -7,7 +7,10 @@ import net.minecraft.client.Minecraft;
 public class ExampleModClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
-        // Register the packet
+        // Register the packet type first
+        PayloadTypeRegistry.playS2C().register(AchievementPayload.TYPE, AchievementPayload.CODEC);
+    
+        // Then register the receiver
         ClientPlayNetworking.registerGlobalReceiver(AchievementPayload.TYPE, (payload, context) -> {
             String json = payload.json();
             context.client().execute(() ->
