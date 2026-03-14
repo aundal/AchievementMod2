@@ -17,7 +17,7 @@ dependencies {
     mappings loom.officialMojangMappings()
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-    clientCompileOnly sourceSets.main.compileClasspath
+    clientImplementation sourceSets.main.output
 }
 processResources {
     inputs.property "version", project.version
