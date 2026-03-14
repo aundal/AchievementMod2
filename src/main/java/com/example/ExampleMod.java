@@ -31,7 +31,7 @@ public class ExampleMod implements ModInitializer {
 
     private static final ExecutorService ASYNC_IO = Executors.newSingleThreadExecutor();
     private static final DateTimeFormatter CHAT_FORMAT = DateTimeFormatter.ofPattern("dd/MM-yyyy HH:mm");
-    // Minecraft 1.21 date format: "2024-05-20 12:34:56 +0200"
+    // Minecraft 1.21.11 date format: "yyyy-MM-dd HH:mm:ss Z"
     private static final DateTimeFormatter MC_JSON_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss Z");
 
     @Override
@@ -47,10 +47,10 @@ public class ExampleMod implements ModInitializer {
 
     private void triggerAchievementScan(ServerCommandSource source) {
         MinecraftServer server = source.getServer();
-        source.sendFeedback(() -> Text.literal("Beregner leaderboard...").formatted(Formatting.GRAY), false);
+        source.sendFeedback(() -> Text.literal("Beregner leaderboard for 1.21.11...").formatted(Formatting.GRAY), false);
 
         List<String> validIds = new ArrayList<>();
-        // In 1.21.1, we iterate through AdvancementHolders
+        // In 1.21.11, we iterate through AdvancementHolders
         for (AdvancementHolder holder : server.getAdvancementLoader().getAdvancements()) {
             if (holder.value().display().isPresent()) {
                 validIds.add(holder.id().toString());
