@@ -10,28 +10,15 @@ base {
 repositories {
 }
 loom {
+    // Required to let 'src/client/java' see Minecraft and Yarn mappings
     splitEnvironmentSourceSets()
-    
-    // If you have specific mixin configs, ensure they are defined here
-    runs {
-        client {
-            client()
-            configName = "Minecraft Client"
-            ideConfigGenerated = true
-            runDir = "run"
-            source sourceSets.client // Ensure the run config uses the client source set
-        }
-        server {
-            server()
-            configName = "Minecraft Server"
-            ideConfigGenerated = true
-            runDir = "run"
-        }
-    }
 }
+
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    mappings loom.officialMojangMappings()
+    
+    // Change this line to use Yarn
+    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
     
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
