@@ -47,9 +47,6 @@ public class ExampleMod implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        // Register S2C packet
-        PayloadTypeRegistry.playS2C().register(AchievementPayload.TYPE, AchievementPayload.CODEC);
-
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             dispatcher.register(literal("achievements")
                 .executes(context -> {
