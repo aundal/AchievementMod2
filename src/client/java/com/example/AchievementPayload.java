@@ -3,7 +3,7 @@ package com.example;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Identifier;
  
 public record AchievementPayload(String json) implements CustomPacketPayload {
  
