@@ -70,6 +70,9 @@ public class ExampleMod implements ModInitializer {
         MinecraftServer server = source.getServer();
         source.sendSuccess(() -> Component.literal("Beregner leaderboard for 1.21.11...").withStyle(ChatFormatting.GRAY), false);
 
+        // Tving gem af alle spillerdata før scanning
+        server.getPlayerList().saveAll();
+        
         List<String> validIds = new ArrayList<>();
         for (AdvancementHolder holder : server.getAdvancements().getAllAdvancements()) {
             if (holder.value().display().isPresent()) {
