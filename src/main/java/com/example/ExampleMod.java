@@ -11,11 +11,11 @@ import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.storage.LevelResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.mojang.brigadier.arguments.StringArgumentType;
 
 import java.io.File;
 import java.io.FileReader;
@@ -26,7 +26,9 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
+import com.mojang.brigadier.arguments.StringArgumentType;
 import static net.minecraft.commands.Commands.literal;
 
 public class ExampleMod implements ModInitializer {
@@ -72,7 +74,6 @@ public class ExampleMod implements ModInitializer {
         return cache;
     }
 
-    // Reverse lookup: name -> uuid
     private String findUuidByName(MinecraftServer server, String username) {
         Map<String, String> cache = loadUserCache(server);
         for (Map.Entry<String, String> entry : cache.entrySet()) {
@@ -125,19 +126,58 @@ public class ExampleMod implements ModInitializer {
             return done;
         }, ASYNC_IO).thenAccept(done -> {
             server.execute(() -> {
-                String header = username + "'s achievements (" + done.size() + "/" + allAdvancements.size() + ")";
-                source.sendSuccess(() -> Component.literal("--- " + header + " ---").withStyle(ChatFormatting.GOLD), false);
-
+                // Group by namespace, minecraft first then rest alphabetically
+                Map<String, List<AdvancementHolder>> grouped = new LinkedHashMap<>();
                 for (AdvancementHolder holder : allAdvancements) {
-                    boolean completed = done.contains(holder.id().toString());
-                    String displayName = holder.value().display()
-                        .map(d -> d.getTitle().getString())
-                        .orElse(holder.id().toString());
+                    String ns = holder.id().getNamespace();
+                    grouped.computeIfAbsent(ns, k -> new ArrayList<>()).add(holder);
+                }
 
-                    String prefix = completed ? "[+] " : "[-] ";
-                    ChatFormatting color = completed ? ChatFormatting.GREEN : ChatFormatting.RED;
+                Map<String, List<AdvancementHolder>> sorted = new LinkedHashMap<>();
+                if (grouped.containsKey("minecraft")) {
+                    sorted.put("minecraft", grouped.get("minecraft"));
+                }
+                grouped.entrySet().stream()
+                    .filter(e -> !e.getKey().equals("minecraft"))
+                    .sorted(Map.Entry.comparingByKey())
+                    .forEach(e -> sorted.put(e.getKey(), e.getValue()));
 
-                    source.sendSuccess(() -> Component.literal(prefix + displayName).withStyle(color), false);
+                source.sendSuccess(() -> Component.literal("--- " + username + "'s achievements ---").withStyle(ChatFormatting.GOLD), false);
+
+                for (Map.Entry<String, List<AdvancementHolder>> group : sorted.entrySet()) {
+                    long groupDone = group.getValue().stream()
+                        .filter(h -> done.contains(h.id().toString())).count();
+                    int groupTotal = group.getValue().size();
+
+                    source.sendSuccess(() -> Component.literal(
+                        group.getKey() + " (" + groupDone + "/" + groupTotal + "):"
+                    ).withStyle(ChatFormatting.YELLOW), false);
+
+                    for (AdvancementHolder holder : group.getValue()) {
+                        boolean completed = done.contains(holder.id().toString());
+
+                        String displayName = holder.value().display()
+                            .map(d -> d.getTitle().getString())
+                            .orElse(holder.id().toString());
+
+                        String description = holder.value().display()
+                            .map(d -> d.getDescription().getString())
+                            .orElse("Ingen beskrivelse.");
+
+                        String prefix = completed ? "  [+] " : "  [-] ";
+                        ChatFormatting color = completed ? ChatFormatting.GREEN : ChatFormatting.RED;
+
+                        Component line = Component.literal(prefix + displayName)
+                            .withStyle(style -> style
+                                .withColor(color)
+                                .withHoverEvent(new HoverEvent(
+                                    HoverEvent.Action.SHOW_TEXT,
+                                    Component.literal(description).withStyle(ChatFormatting.GRAY)
+                                ))
+                            );
+
+                        source.sendSuccess(() -> line, false);
+                    }
                 }
             });
         }).exceptionally(ex -> {
