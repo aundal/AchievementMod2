@@ -5,12 +5,12 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-import net.minecraft.advancements.AdvancementHolder; // MOJANG MAPPINGS USE 'S'
+import net.minecraft.ChatFormatting;
+import net.minecraft.advancements.AdvancementHolder;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.WorldSavePath;
+import net.minecraft.world.level.storage.LevelResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,7 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static net.minecraft.server.command.CommandManager.literal;
+import static net.minecraft.commands.Commands.literal;
 
 public class ExampleMod implements ModInitializer {
     public static final Logger LOGGER = LoggerFactory.getLogger("achievementmod");
@@ -44,29 +44,30 @@ public class ExampleMod implements ModInitializer {
         });
     }
 
-    private void triggerAchievementScan(ServerCommandSource source) {
+    private void triggerAchievementScan(CommandSourceStack source) {
         MinecraftServer server = source.getServer();
-        source.sendFeedback(() -> Text.literal("Beregner leaderboard for 1.21.11...").formatted(Formatting.GRAY), false);
+        source.sendSuccess(() -> Component.literal("Beregner leaderboard for 1.21.11...").withStyle(ChatFormatting.GRAY), false);
 
         List<String> validIds = new ArrayList<>();
-        // Mojang Mappings 1.21.11 logic
+        // Mojang Mappings: getAdvancements().getAllAdvancements()
         for (AdvancementHolder holder : server.getAdvancements().getAllAdvancements()) {
             if (holder.value().display().isPresent()) {
                 validIds.add(holder.id().toString());
             }
         }
 
-        Path savePath = server.getSavePath(WorldSavePath.ADVANCEMENTS);
+        // Mojang Mappings: LevelResource instead of WorldSavePath
+        Path savePath = server.getWorldPath(LevelResource.ADVANCEMENTS);
 
         CompletableFuture.supplyAsync(() -> buildStats(server, savePath, validIds), ASYNC_IO)
             .thenAccept(results -> {
                 server.execute(() -> {
                     if (results.isEmpty()) {
-                        source.sendFeedback(() -> Text.literal("Ingen data fundet.").formatted(Formatting.RED), false);
+                        source.sendSuccess(() -> Component.literal("Ingen data fundet.").withStyle(ChatFormatting.RED), false);
                         return;
                     }
 
-                    source.sendFeedback(() -> Text.literal("--- Achievements Leaderboard ---").formatted(Formatting.GOLD), false);
+                    source.sendSuccess(() -> Component.literal("--- Achievements Leaderboard ---").withStyle(ChatFormatting.GOLD), false);
                     int rank = 1;
                     for (PlayerResult res : results) {
                         String timeStr = res.lastTs() > 0 
@@ -76,13 +77,13 @@ public class ExampleMod implements ModInitializer {
                         String line = String.format("%d. %s: %d/%d (Sidst: %s)", 
                             rank++, res.name(), res.count(), validIds.size(), timeStr);
                         
-                        source.sendFeedback(() -> Text.literal(line).formatted(Formatting.WHITE), false);
+                        source.sendSuccess(() -> Component.literal(line).withStyle(ChatFormatting.WHITE), false);
                     }
                 });
             })
             .exceptionally(ex -> {
                 LOGGER.error("Fejl under scanning", ex);
-                server.execute(() -> source.sendError(Text.literal("Intern fejl under scanning.")));
+                server.execute(() -> source.sendFailure(Component.literal("Intern fejl under scanning.")));
                 return null;
             });
     }
@@ -100,6 +101,7 @@ public class ExampleMod implements ModInitializer {
                 if (uuidStr.length() < 32) continue; 
 
                 UUID uuid = UUID.fromString(uuidStr);
+                // Mojang Mappings: getProfileCache()
                 String playerName = server.getProfileCache().get(uuid)
                         .map(profile -> profile.getName())
                         .orElse("Ukendt (" + uuidStr.substring(0, 4) + ")");
