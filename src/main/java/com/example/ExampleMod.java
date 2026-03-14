@@ -33,9 +33,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+
 import static net.minecraft.commands.Commands.literal;
 
 public class ExampleMod implements ModInitializer {
+    public static GuiSender guiSender = null;
     public static final Logger LOGGER = LoggerFactory.getLogger("crappy_achievements");
 
     private static final ExecutorService ASYNC_IO = Executors.newSingleThreadExecutor();
@@ -94,7 +96,7 @@ public class ExampleMod implements ModInitializer {
 
         CompletableFuture.supplyAsync(() -> buildGuiJson(server, savePath, displayable, userCache), ASYNC_IO)
             .thenAccept(json -> server.execute(() -> {
-                ServerPlayNetworking.send(requestingPlayer, new AchievementPayload(json));
+                if (guiSender != null) guiSender.send(requestingPlayer, json);
             }))
             .exceptionally(ex -> {
                 LOGGER.error("Error building GUI data", ex);
