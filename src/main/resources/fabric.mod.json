@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"id": "CrappyAchievements",
+	"id": "crappy_achievements",
 	"version": "${version}",
 	"name": "Crappy Achievements",
 	"description": "Super Crappy Achievements Highscores",
