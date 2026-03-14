@@ -5,7 +5,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-import net.minecraft.advancement.AdvancementHolder;
+import net.minecraft.advancements.AdvancementHolder; // MOJANG MAPPINGS USE 'S'
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.Text;
@@ -31,7 +31,6 @@ public class ExampleMod implements ModInitializer {
 
     private static final ExecutorService ASYNC_IO = Executors.newSingleThreadExecutor();
     private static final DateTimeFormatter CHAT_FORMAT = DateTimeFormatter.ofPattern("dd/MM-yyyy HH:mm");
-    // Minecraft 1.21.11 date format: "yyyy-MM-dd HH:mm:ss Z"
     private static final DateTimeFormatter MC_JSON_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss Z");
 
     @Override
@@ -50,8 +49,8 @@ public class ExampleMod implements ModInitializer {
         source.sendFeedback(() -> Text.literal("Beregner leaderboard for 1.21.11...").formatted(Formatting.GRAY), false);
 
         List<String> validIds = new ArrayList<>();
-        // In 1.21.11, we iterate through AdvancementHolders
-        for (AdvancementHolder holder : server.getAdvancementLoader().getAdvancements()) {
+        // Mojang Mappings 1.21.11 logic
+        for (AdvancementHolder holder : server.getAdvancements().getAllAdvancements()) {
             if (holder.value().display().isPresent()) {
                 validIds.add(holder.id().toString());
             }
@@ -101,7 +100,7 @@ public class ExampleMod implements ModInitializer {
                 if (uuidStr.length() < 32) continue; 
 
                 UUID uuid = UUID.fromString(uuidStr);
-                String playerName = server.getUserCache().getByUuid(uuid)
+                String playerName = server.getProfileCache().get(uuid)
                         .map(profile -> profile.getName())
                         .orElse("Ukendt (" + uuidStr.substring(0, 4) + ")");
 
