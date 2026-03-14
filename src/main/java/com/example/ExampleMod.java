@@ -28,7 +28,7 @@ import java.util.concurrent.Executors;
 import static net.minecraft.commands.Commands.literal;
 
 public class ExampleMod implements ModInitializer {
-    public static final Logger LOGGER = LoggerFactory.getLogger("achievementmod");
+    public static final Logger LOGGER = LoggerFactory.getLogger("crappy_achievements");
 
     private static final ExecutorService ASYNC_IO = Executors.newSingleThreadExecutor();
     private static final DateTimeFormatter CHAT_FORMAT = DateTimeFormatter.ofPattern("dd/MM-yyyy HH:mm");
