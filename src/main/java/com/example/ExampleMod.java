@@ -49,15 +49,15 @@ public class ExampleMod implements ModInitializer {
         source.sendSuccess(() -> Component.literal("Beregner leaderboard for 1.21.11...").withStyle(ChatFormatting.GRAY), false);
 
         List<String> validIds = new ArrayList<>();
-        // Mojang Mappings: getAdvancements().getAllAdvancements()
+        // Get all advancements that have a display (icon/title)
         for (AdvancementHolder holder : server.getAdvancements().getAllAdvancements()) {
             if (holder.value().display().isPresent()) {
                 validIds.add(holder.id().toString());
             }
         }
 
-        // Mojang Mappings: LevelResource instead of WorldSavePath
-        Path savePath = server.getWorldPath(LevelResource.ADVANCEMENTS);
+        // FIX: Using a manual LevelResource to avoid "ADVANCEMENTS" field error
+        Path savePath = server.getWorldPath(new LevelResource("advancements"));
 
         CompletableFuture.supplyAsync(() -> buildStats(server, savePath, validIds), ASYNC_IO)
             .thenAccept(results -> {
@@ -101,8 +101,9 @@ public class ExampleMod implements ModInitializer {
                 if (uuidStr.length() < 32) continue; 
 
                 UUID uuid = UUID.fromString(uuidStr);
-                // Mojang Mappings: getProfileCache()
-                String playerName = server.getProfileCache().get(uuid)
+                
+                // FIX: Using getUserCache() which is the standard Fabric-mapped name
+                String playerName = server.getUserCache().get(uuid)
                         .map(profile -> profile.getName())
                         .orElse("Ukendt (" + uuidStr.substring(0, 4) + ")");
 
