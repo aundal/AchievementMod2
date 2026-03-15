@@ -1,16 +1,13 @@
 pluginManagement {
     repositories {
-        maven {
-            name = 'Fabric'
-            url = 'https://maven.fabricmc.net/'
-        }
+        maven { url = 'https://maven.fabricmc.net/' }
         mavenCentral()
         gradlePluginPortal()
     }
 }
 
 plugins {
-    // The ID must be 'fabric-loom'. Variables work here in settings.gradle.
+    // This resolves the variable from gradle.properties
     id 'fabric-loom' version "${loom_version}"
 }
 
