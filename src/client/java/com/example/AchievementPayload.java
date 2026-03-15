@@ -3,12 +3,12 @@ package com.example;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.util.Identifier;
+import net.minecraft.resources.ResourceLocation;
  
 public record AchievementPayload(String json) implements CustomPacketPayload {
  
     public static final Type<AchievementPayload> TYPE = new Type<>(
-        Identifier.of("crappy_achievements", "achievement_data")
+        public static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath("crappy_achievements", "achievement_data");
     );
  
     public static final StreamCodec<FriendlyByteBuf, AchievementPayload> CODEC = StreamCodec.of(
