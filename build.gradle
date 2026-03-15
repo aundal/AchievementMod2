@@ -22,12 +22,11 @@ loom {
 	splitEnvironmentSourceSets()
 
     mods {
-        "crappy-achievements" {
+        "crappy_achievements" {
             sourceSet sourceSets.main
             sourceSet sourceSets.client
         }
     }
-
 }
 
 dependencies {
