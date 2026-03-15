@@ -5,10 +5,12 @@ plugins {
 
 loom {
     splitEnvironmentSourceSets()
-	
+
+    unpick {
+        enabled = false
+    }
+
     mods {
-        // This MUST match the "id" in your fabric.mod.json exactly
-        // Use the UNDERSCORE version: "crappy_achievements"
         "crappy_achievements" {
             sourceSet sourceSets.main
             sourceSet sourceSets.client
