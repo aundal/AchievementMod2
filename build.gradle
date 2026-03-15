@@ -5,6 +5,7 @@ plugins {
 
 loom {
     splitEnvironmentSourceSets()
+    silentMojangMappingsLicense()
 
     unpick {
         enabled = false
