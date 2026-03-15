@@ -67,4 +67,4 @@ CC0-1.0 — public domain, do whatever you want with it.
 
 ## Author
 
-Daniel Aundal — [aundal.dl](https://aundal.dl/)
+Daniel Aundal — [aundal.dk](https://aundal.dk/)
