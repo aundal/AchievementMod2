@@ -3,11 +3,6 @@ plugins {
     id 'maven-publish'
 }
 
-configurations {
-    clientImplementation.extendsFrom implementation
-    clientRuntimeOnly.extendsFrom runtimeOnly
-}
-
 loom {
     splitEnvironmentSourceSets()
 
