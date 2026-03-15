@@ -21,12 +21,12 @@ repositories {
 loom {
 	splitEnvironmentSourceSets()
 
-	mods {
-		"modid" {
-			sourceSet sourceSets.main
-			sourceSet sourceSets.client
-		}
-	}
+    mods {
+        "crappy-achievements" {
+            sourceSet sourceSets.main
+            sourceSet sourceSets.client
+        }
+    }
 
 }
 
