@@ -10,11 +10,12 @@ plugins {
 loom {
     splitEnvironmentSourceSets()
 
-    // Required to prevent the Javadoc/Unpick crash in 1.21.11
+    // Correct syntax for Loom 1.9.2 to stop the Unpick/Javadoc crash
     unpick.enabled = false
 
     mods {
-        // This MUST match the "id" in your fabric.mod.json (crappy_achievements)
+        // This MUST match the "id" in your fabric.mod.json exactly
+        // Use the UNDERSCORE version: "crappy_achievements"
         "crappy_achievements" {
             sourceSet sourceSets.main
             sourceSet sourceSets.client
@@ -22,8 +23,8 @@ loom {
     }
 }
 
-// THIS IS THE BRIDGE: 
-// It forces the 'client' folder to inherit the Minecraft libraries from 'main'
+// THIS IS THE CRITICAL MISSING PIECE:
+// It bridges the classpath so the 'client' folder can see 'ResourceLocation'
 configurations {
     clientImplementation.extendsFrom implementation
     clientRuntimeOnly.extendsFrom runtimeOnly
