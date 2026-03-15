@@ -5,10 +5,7 @@ plugins {
 
 loom {
     splitEnvironmentSourceSets()
-
-    // Correct syntax for Loom 1.9.2 to stop the Unpick/Javadoc crash
-	it.unpickEnabled.set(false)
-
+	
     mods {
         // This MUST match the "id" in your fabric.mod.json exactly
         // Use the UNDERSCORE version: "crappy_achievements"
