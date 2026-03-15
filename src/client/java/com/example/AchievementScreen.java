@@ -12,7 +12,7 @@ import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.resources.DefaultPlayerSkin;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.util.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
@@ -140,7 +140,7 @@ public class AchievementScreen extends Screen {
 
     // Use reflection to get texture from PlayerSkin — avoids version-specific accessor name
     private void renderHead(GuiGraphics g, UUID uuid, int x, int y, int size) {
-        Identifier skin = null;
+        ResourceLocation skin = null;
         try {
             Minecraft mc = Minecraft.getInstance();
             if (mc.getConnection() != null) {
@@ -151,7 +151,7 @@ public class AchievementScreen extends Screen {
                     for (String methodName : new String[]{"texture", "getTexture"}) {
                         try {
                             Method m = playerSkin.getClass().getMethod(methodName);
-                            skin = (Identifier) m.invoke(playerSkin);
+                            skin = (ResourceLocation) m.invoke(playerSkin);
                             break;
                         } catch (Exception ignored) {}
                     }
@@ -162,14 +162,14 @@ public class AchievementScreen extends Screen {
                 for (String methodName : new String[]{"texture", "getTexture"}) {
                     try {
                         Method m = defaultSkin.getClass().getMethod(methodName);
-                        skin = (Identifier) m.invoke(defaultSkin);
+                        skin = (ResourceLocation) m.invoke(defaultSkin);
                         break;
                     } catch (Exception ignored) {}
                 }
             }
         } catch (Exception ignored) {}
 
-        if (skin == null) skin = Identifier.ofVanilla("textures/entity/player/wide/steve.png");
+        if (skin == null) skin = ResourceLocation.withDefaultNamespace("textures/entity/player/wide/steve.png");
         PlayerFaceRenderer.draw(g, skin, x, y, size);
     }
 
@@ -308,7 +308,7 @@ public class AchievementScreen extends Screen {
     private ItemStack resolveItem(String itemId) {
         try {
             return BuiltInRegistries.ITEM
-                .getOptional(Identifier.of(itemId))
+                .getOptional(ResourceLocation.parse(itemId))
                 .map(ItemStack::new)
                 .orElse(new ItemStack(Items.BARRIER));
         } catch (Exception e) {
