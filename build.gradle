@@ -3,15 +3,16 @@ plugins {
     id 'maven-publish'
 }
 
-// Ensure these are in your gradle.properties:
-// loom_version=1.9.2
-// minecraft_version=1.21.11
+configurations {
+    clientImplementation.extendsFrom implementation
+    clientRuntimeOnly.extendsFrom runtimeOnly
+}
 
 loom {
     splitEnvironmentSourceSets()
 
     // Correct syntax for Loom 1.9.2 to stop the Unpick/Javadoc crash
-    unpick.enabled = false
+	it.unpickEnabled.set(false)
 
     mods {
         // This MUST match the "id" in your fabric.mod.json exactly
@@ -21,13 +22,6 @@ loom {
             sourceSet sourceSets.client
         }
     }
-}
-
-// THIS IS THE CRITICAL MISSING PIECE:
-// It bridges the classpath so the 'client' folder can see 'ResourceLocation'
-configurations {
-    clientImplementation.extendsFrom implementation
-    clientRuntimeOnly.extendsFrom runtimeOnly
 }
 
 dependencies {
