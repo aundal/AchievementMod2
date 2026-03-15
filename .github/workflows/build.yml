@@ -23,7 +23,7 @@ jobs:
 
       # Run clean before build to ensure no stale classes exist
       - name: build
-        run: ./gradlew clean build
+        run: ./gradlew clean build --refresh-dependencies
 
       - name: capture build artifacts
         uses: actions/upload-artifact@v4
