@@ -1,7 +1,7 @@
 plugins {
     // Both 'fabric-loom' and 'net.fabricmc.fabric-loom-remap' work with 1.9.2
     // Ensure this matches your settings.gradle
-    id 'net.fabricmc.fabric-loom-remap'
+    id 'fabric-loom'
     id 'maven-publish'
 }
 
